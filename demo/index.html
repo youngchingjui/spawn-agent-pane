@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1280, height=720" />
+    <title>One Message → Three Tasks Done in Parallel | Claude Code Demo</title>
+    <style>
+      /* ── Reset & base ── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: linear-gradient(
+          135deg,
+          #1a1025 0%,
+          #2d1b4e 40%,
+          #1a2744 100%
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-family: "Menlo", "Monaco", "Courier New", monospace;
+        overflow: hidden;
+      }
+
+      /* ── Viewport container (recording frame) ── */
+      #viewport {
+        width: 1280px;
+        height: 720px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 30px;
+      }
+
+      /* ── Mac window chrome ── */
+      #window {
+        width: 660px;
+        height: 670px;
+        transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+          transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        transform-origin: right center;
+        background: #1e1e2e;
+        border-radius: 10px;
+        box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6),
+          0 0 0 1px rgba(255, 255, 255, 0.06);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* Title bar */
+      #titlebar {
+        height: 38px;
+        min-height: 38px;
+        background: #2b2b3d;
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        border-bottom: 1px solid #383850;
+        gap: 8px;
+      }
+      .traffic-light {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .tl-red {
+        background: #ff5f57;
+      }
+      .tl-yellow {
+        background: #febc2e;
+      }
+      .tl-green {
+        background: #28c840;
+      }
+      .tl-spacer {
+        width: 6px;
+      }
+
+      /* Task color coding */
+      .task-red {
+        color: #f38ba8;
+      }
+      .task-green {
+        color: #a6e3a1;
+      }
+      .task-blue {
+        color: #89b4fa;
+      }
+      .task-red-bg {
+        background: rgba(243, 139, 168, 0.15);
+        border-radius: 3px;
+        padding: 0 2px;
+      }
+      .task-green-bg {
+        background: rgba(166, 227, 161, 0.15);
+        border-radius: 3px;
+        padding: 0 2px;
+      }
+      .task-blue-bg {
+        background: rgba(137, 180, 250, 0.15);
+        border-radius: 3px;
+        padding: 0 2px;
+      }
+
+      /* ── Pane container ── */
+      #panes {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .pane {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-right: 1px solid #383850;
+        position: relative;
+        transition: flex 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .pane:last-child {
+        border-right: none;
+      }
+
+      /* Pane header (Claude Code banner) */
+      .pane-header {
+        padding: 10px 14px 6px;
+        font-size: 11px;
+        line-height: 1.5;
+        color: #6c7086;
+        flex-shrink: 0;
+      }
+      .pane-header .version {
+        color: #6c7086;
+        font-weight: bold;
+      }
+      .pane-header .model {
+        color: #7d6a52;
+      }
+      .pane-header .dir {
+        color: #5a7fad;
+      }
+
+      /* Mascot (pixel art) */
+      .mascot {
+        display: flex;
+        justify-content: center;
+        padding: 4px 0 2px;
+      }
+      .mascot svg {
+        width: 40px;
+        height: 32px;
+      }
+
+      /* Terminal content */
+      .terminal {
+        flex: 1;
+        padding: 4px 14px 14px;
+        overflow-y: auto;
+        font-size: 12px;
+        line-height: 1.55;
+        color: #cdd6f4;
+        scrollbar-width: none;
+      }
+      .terminal::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* Terminal text styling */
+      .t-dim {
+        color: #6c7086;
+      }
+      .t-low {
+        opacity: 0.45;
+      } /* supporting/plumbing lines — visible but receded */
+      .t-green {
+        color: #a6e3a1;
+      }
+      .t-blue {
+        color: #89b4fa;
+      }
+      .t-peach {
+        color: #f5a97f;
+      }
+      .t-mauve {
+        color: #cba6f7;
+      }
+      .t-yellow {
+        color: #f9e2af;
+      }
+      .t-red {
+        color: #f38ba8;
+      }
+      .t-teal {
+        color: #94e2d5;
+      }
+      .t-bold {
+        font-weight: bold;
+      }
+      .t-white {
+        color: #fff;
+      }
+
+      .line {
+        white-space: pre-wrap;
+        word-break: break-word;
+        opacity: 0;
+        transform: translateY(2px);
+        transition: opacity 0.15s, transform 0.15s;
+      }
+      .line.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Prompt line */
+      .prompt-char {
+        color: #a6e3a1;
+        font-weight: bold;
+      }
+
+      /* Cursor */
+      .cursor {
+        display: inline-block;
+        width: 8px;
+        height: 14px;
+        background: #cdd6f4;
+        vertical-align: text-bottom;
+        opacity: 0.3;
+      }
+
+      /* Tool badge */
+      .tool-badge {
+        display: inline-block;
+        background: #313244;
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-size: 11px;
+        margin: 2px 0;
+      }
+
+      /* ── Annotation container (left column) ── */
+      #ann-container {
+        position: absolute;
+        left: 40px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 300px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        z-index: 100;
+      }
+
+      .annotation {
+        position: relative;
+        color: #cdd6f4;
+        font-size: 15px;
+        font-family: "Inter", -apple-system, sans-serif;
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 0.5s, transform 0.5s;
+        line-height: 1.55;
+        padding-left: 32px;
+      }
+      .annotation.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .annotation .ann-title {
+        color: #cba6f7;
+        font-weight: 700;
+        font-size: 17px;
+        display: block;
+        margin-bottom: 4px;
+      }
+      .annotation .ann-num {
+        position: absolute;
+        left: 0;
+        top: 2px;
+        display: inline-block;
+        background: #cba6f7;
+        color: #1e1e2e;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 22px;
+        font-weight: 700;
+        font-size: 12px;
+      }
+
+      /* ── Focus overlay ── */
+      #focus-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        z-index: 50;
+        opacity: 0;
+        transition: opacity 0.6s;
+        pointer-events: none;
+        border-radius: 10px;
+      }
+      #focus-overlay.visible {
+        opacity: 1;
+      }
+      .pane.focused {
+        z-index: 60;
+        position: relative;
+      }
+
+      /* ── Start overlay ── */
+      #start-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 200;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 10px;
+        transition: opacity 0.5s;
+        gap: 16px;
+      }
+      #start-overlay.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .start-subtitle {
+        font-family: "Inter", -apple-system, sans-serif;
+        color: #a6adc8;
+        font-size: 14px;
+        text-align: center;
+        max-width: 540px;
+        line-height: 1.6;
+      }
+
+      #start-btn {
+        padding: 14px 36px;
+        background: #cba6f7;
+        color: #1e1e2e;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        font-family: "Inter", -apple-system, sans-serif;
+        cursor: pointer;
+        transition: transform 0.15s, box-shadow 0.15s;
+        box-shadow: 0 4px 20px rgba(203, 166, 247, 0.4);
+      }
+      #start-btn:hover {
+        transform: scale(1.04);
+        box-shadow: 0 6px 28px rgba(203, 166, 247, 0.55);
+      }
+
+      /* ── Progress bar ── */
+      #progress {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 2px;
+        background: #cba6f7;
+        z-index: 110;
+        transition: width 0.3s linear;
+        border-radius: 0 0 0 10px;
+      }
+
+      /* ── Prompt quote block (for showing crafted prompts) ── */
+      .prompt-block {
+        background: #181825;
+        border-left: 3px solid #cba6f7;
+        padding: 6px 10px;
+        margin: 4px 0;
+        font-size: 11px;
+        line-height: 1.5;
+        color: #a6adc8;
+        border-radius: 0 4px 4px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewport">
+      <div id="ann-container">
+        <div class="annotation" id="ann-1">
+          <span class="ann-num">1</span>
+          <span class="ann-title">Task decomposition</span>
+          Unstructured input gets split into distinct tasks, each spawned as a
+          separate parallel agent.
+        </div>
+        <div class="annotation" id="ann-2">
+          <span class="ann-num">2</span>
+          <span class="ann-title">Spawns separate agents via skill</span>
+          Uses the "spawn-agent-pane" skill to launch independent agents in
+          their own terminal panes — easier to track and debug than sub-agents.
+          Link to skill in post.
+        </div>
+        <div class="annotation" id="ann-3">
+          <span class="ann-num">3</span>
+          <span class="ann-title">Context-rich delegation</span>
+          From a vague request, the HQ agent infers file paths, project
+          conventions, and scope from its config — then passes all of that to
+          each agent.
+        </div>
+        <div class="annotation" id="ann-4">
+          <span class="ann-num">4</span>
+          <span class="ann-title">Less downtime</span>
+          Multiple agents running means you rotate between them as each one
+          needs input, instead of waiting on one.
+        </div>
+      </div>
+      <div id="window">
+        <div id="titlebar">
+          <div class="traffic-light tl-red"></div>
+          <div class="traffic-light tl-yellow"></div>
+          <div class="traffic-light tl-green"></div>
+          <div class="tl-spacer"></div>
+          <span
+            style="
+              color: #cdd6f4;
+              font-size: 13px;
+              font-family: 'Inter', -apple-system, sans-serif;
+              font-weight: 600;
+              letter-spacing: 0.3px;
+            "
+            >Claude Code as Project Manager</span
+          >
+        </div>
+        <div id="panes"></div>
+        <div id="focus-overlay"></div>
+
+        <!-- Annotations (stacked on left) -->
+
+        <div id="start-overlay">
+          <div class="start-subtitle">
+            Claude Code breaks down a messy request, delegates to agents, and
+            runs everything in parallel.
+          </div>
+          <button id="start-btn">&#9654;&ensp;Watch It Work</button>
+        </div>
+
+        <div id="progress" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <script>
+      // ═══════════════════════════════════════════
+      //  Animation Engine
+      // ═══════════════════════════════════════════
+
+      const TOTAL_DURATION = 62000
+      let startTime = 0
+
+      function $(sel) {
+        return document.querySelector(sel)
+      }
+      function wait(ms) {
+        return new Promise((r) => setTimeout(r, ms))
+      }
+      function show(el) {
+        el.classList.add("visible")
+      }
+      function hide(el) {
+        el.classList.remove("visible")
+      }
+
+      async function typewriter(container, text, speed = 22) {
+        const span = document.createElement("span")
+        container.appendChild(span)
+        for (let i = 0; i < text.length; i++) {
+          span.textContent += text[i]
+          container.scrollTop = container.scrollHeight
+          await wait(speed)
+        }
+        return span
+      }
+
+      function addLine(terminal, html, cls = "") {
+        const div = document.createElement("div")
+        div.className = "line " + cls
+        div.innerHTML = html
+        terminal.appendChild(div)
+        void div.offsetHeight
+        div.classList.add("visible")
+        terminal.scrollTop = terminal.scrollHeight
+        return div
+      }
+
+      function addPromptBlock(terminal, lines) {
+        const div = document.createElement("div")
+        div.className = "line prompt-block"
+        div.innerHTML = lines.join("<br>")
+        terminal.appendChild(div)
+        void div.offsetHeight
+        div.classList.add("visible")
+        terminal.scrollTop = terminal.scrollHeight
+        return div
+      }
+
+      function createPane(id, dir, flexVal) {
+        const pane = document.createElement("div")
+        pane.className = "pane"
+        pane.id = id
+        pane.style.flex = flexVal || "1"
+        pane.innerHTML = `
+    <div class="mascot">
+      <svg viewBox="0 0 40 32" fill="none">
+        <rect x="4" y="2" width="32" height="24" rx="4" fill="#45475a"/>
+        <rect x="8" y="6" width="8" height="6" rx="1" fill="#f5a97f"/>
+        <rect x="24" y="6" width="8" height="6" rx="1" fill="#f5a97f"/>
+        <rect x="10" y="8" width="3" height="3" rx="1" fill="#1e1e2e"/>
+        <rect x="27" y="8" width="3" height="3" rx="1" fill="#1e1e2e"/>
+        <rect x="14" y="16" width="12" height="3" rx="1" fill="#a6e3a1"/>
+        <rect x="2" y="22" width="8" height="6" rx="2" fill="#45475a"/>
+        <rect x="30" y="22" width="8" height="6" rx="2" fill="#45475a"/>
+      </svg>
+    </div>
+    <div class="pane-header">
+      <span class="version">Claude Code v2.1.66</span><br>
+      <span class="model">Opus 4.6</span> · Claude Max<br>
+      <span class="dir">${dir}</span>
+    </div>
+    <div class="terminal" id="${id}-term"></div>
+  `
+        return pane
+      }
+
+      function updateProgress() {
+        const elapsed = Date.now() - startTime
+        const pct = Math.min(100, (elapsed / TOTAL_DURATION) * 100)
+        $("#progress").style.width = pct + "%"
+        if (pct < 100) requestAnimationFrame(updateProgress)
+      }
+
+      function toolLine(name, detail) {
+        return `<span class="t-dim">&#9679;</span> <span class="tool-badge"><span class="t-teal">${name}</span></span> ${detail}`
+      }
+      function resultLine(text) {
+        return `<span class="t-dim">  \u2514 ${text}</span>`
+      }
+
+      // ═══════════════════════════════════════════
+      //  Main Sequence
+      // ═══════════════════════════════════════════
+      async function runDemo() {
+        const panesEl = $("#panes")
+        startTime = Date.now()
+        requestAnimationFrame(updateProgress)
+
+        // ── Phase 1: HQ appears ──
+        const hqPane = createPane("hq", "~/Projects/hq", "1")
+        panesEl.appendChild(hqPane)
+        const hqTerm = $("#hq-term")
+        await wait(500)
+
+        // Blinking cursor
+        addLine(
+          hqTerm,
+          '<span class="prompt-char">&gt;</span> <span class="cursor"></span>'
+        )
+        await wait(800)
+        hqTerm.lastChild.remove()
+
+        // ── User types rambling input (color applied after each task segment finishes) ──
+        const userInputParts = [
+          {
+            text: `the refolk app has a bug — users are getting 403s on the workflow detail page`,
+            cls: "task-red-bg",
+          },
+          { text: `. `, cls: "" },
+          {
+            text: `I need a linkedin post about our launch next week`,
+            cls: "task-green-bg",
+          },
+          { text: `. `, cls: "" },
+          {
+            text: `set up a monthly update doc for january and february`,
+            cls: "task-blue-bg",
+          },
+        ]
+
+        // Zoom in on the prompt
+        $("#window").style.transform = "scale(1.5)"
+        await wait(600)
+
+        const promptLine = addLine(
+          hqTerm,
+          '<span class="prompt-char">&gt;</span> ',
+          ""
+        )
+        for (const part of userInputParts) {
+          const span = document.createElement("span")
+          promptLine.appendChild(span)
+          for (let i = 0; i < part.text.length; i++) {
+            span.textContent += part.text[i]
+            hqTerm.scrollTop = hqTerm.scrollHeight
+            await wait(16)
+          }
+          // Apply color highlight after the segment finishes typing
+          if (part.cls) span.className = part.cls
+        }
+
+        // Zoom back out
+        await wait(400)
+        $("#window").style.transform = "scale(1)"
+        await wait(600)
+
+        // Annotation 1: task decomposition (stays visible)
+        show($("#ann-1"))
+
+        // ── Phase 2: HQ processes — acts as project manager ──
+        await wait(600)
+        addLine(hqTerm, "")
+        addLine(
+          hqTerm,
+          toolLine("Think", '<span class="t-dim">analyzing request...</span>'),
+          "t-low"
+        )
+        await wait(1400)
+        addLine(hqTerm, resultLine("Identified 3 independent tasks"), "t-low")
+        await wait(500)
+
+        addLine(hqTerm, "")
+        addLine(
+          hqTerm,
+          '<span class="t-bold t-white">3 tasks identified. Delegating:</span>'
+        )
+        await wait(600)
+
+        // Task list (color-coded backgrounds to match input highlights)
+        const tasks = [
+          [
+            "1",
+            "Fix auth 403 bug in workflow detail page",
+            "~/Projects/refolk",
+            "task-red-bg",
+          ],
+          [
+            "2",
+            "Draft LinkedIn post for launch announcement",
+            "~/Projects/marketing",
+            "task-green-bg",
+          ],
+          [
+            "3",
+            "Create monthly update doc (Jan & Feb)",
+            "~/Projects/personal",
+            "task-blue-bg",
+          ],
+        ]
+        for (const [num, desc, dir, cls] of tasks) {
+          addLine(hqTerm, `  ${num}. <span class="${cls}">${desc}</span>`)
+          addLine(hqTerm, `<span class="t-dim">     \u2192 ${dir}</span>`)
+          await wait(400)
+        }
+
+        // ── Phase 2.5: Claude recalls the skill it wrote ──
+        await wait(500)
+        addLine(hqTerm, "")
+        addLine(
+          hqTerm,
+          toolLine("Skill", '<span class="t-yellow">spawn-agent</span>')
+        )
+        await wait(900)
+        addLine(
+          hqTerm,
+          resultLine("Loaded: multi-agent delegation via iTerm2 panes")
+        )
+        await wait(400)
+        addLine(
+          hqTerm,
+          resultLine(
+            '<span class="t-dim">Script: spawn-claude-pane.sh (self-authored)</span>'
+          ),
+          "t-low"
+        )
+
+        // Annotation 2: self-authored skill (stays visible)
+        show($("#ann-2"))
+
+        // ── Phase 3: HQ crafts detailed prompts ──
+        await wait(500)
+        addLine(hqTerm, "")
+        addLine(
+          hqTerm,
+          '<span class="t-dim">Crafting detailed prompts for each agent...</span>',
+          "t-low"
+        )
+        await wait(800)
+
+        // Annotation 3: context-rich delegation (stays visible)
+        show($("#ann-3"))
+
+        // Spawn agent 1 with detailed prompt
+        addLine(hqTerm, "")
+        addLine(
+          hqTerm,
+          toolLine(
+            "Bash",
+            '<span class="t-dim">spawn-claude-pane.sh -d ~/Projects/refolk</span>'
+          ),
+          "t-low"
+        )
+        await wait(300)
+        addPromptBlock(hqTerm, [
+          '<span class="task-red-bg">Prompt:</span> "Fix the 403 auth bug on the',
+          "workflow detail page. This is a Next.js app",
+          "using next-auth for session management.",
+          "",
+          "The list endpoint at src/pages/api/workflows/",
+          "index.ts has getServerSession() with a 401",
+          "guard — but the detail endpoint [id].ts",
+          "likely skips it. Add the same auth pattern:",
+          "getServerSession(req, res, authOptions),",
+          "check for null, return 401.",
+          "",
+          "Also verify the repo ownership check —",
+          "index.ts filters by session.user.id, make",
+          "sure [id].ts does the same before returning",
+          'data. Run npm test after. Do NOT git add."',
+        ])
+        await wait(1200)
+        addLine(
+          hqTerm,
+          resultLine('<span class="t-green">Agent spawned in new pane</span>')
+        )
+        await wait(400)
+
+        // Spawn agent 2 with detailed prompt
+        addLine(hqTerm, "")
+        addLine(
+          hqTerm,
+          toolLine(
+            "Bash",
+            '<span class="t-dim">spawn-claude-pane.sh -d ~/Projects/marketing</span>'
+          ),
+          "t-low"
+        )
+        await wait(300)
+        addPromptBlock(hqTerm, [
+          '<span class="task-green-bg">Prompt:</span> "Draft a LinkedIn post about',
+          "the Refolk launch next week. This is a",
+          "workflow automation tool for recruiters.",
+          "",
+          "Read existing posts in linkedin/ for tone",
+          "and format — Ching writes casual, first-",
+          "person, no hashtags, no emoji. Reference",
+          "linkedin/claude-code-multi-agent-2026-03-",
+          "06.md as the most recent example.",
+          "",
+          "Use the /linkedin skill. Angle: shipping",
+          "speed with AI-native development. Save to",
+          "linkedin/refolk-launch-2026-03-04.md.",
+          "Filename format: topic-YYYY-MM-DD.md.",
+          'Do NOT git add."',
+        ])
+        await wait(1200)
+        addLine(
+          hqTerm,
+          resultLine('<span class="t-green">Agent spawned in new pane</span>')
+        )
+        await wait(400)
+
+        // Spawn agent 3 with detailed prompt
+        addLine(hqTerm, "")
+        addLine(
+          hqTerm,
+          toolLine(
+            "Bash",
+            '<span class="t-dim">spawn-claude-pane.sh -d ~/Projects/personal</span>'
+          ),
+          "t-low"
+        )
+        await wait(300)
+        addPromptBlock(hqTerm, [
+          '<span class="task-blue-bg">Prompt:</span> "Create a monthly update doc',
+          "for January & February 2026. Use the gh",
+          "CLI (not the GitHub MCP — it has auth",
+          "issues) to pull recent activity.",
+          "",
+          "Repos to check: youngchingjui/refolk,",
+          "youngchingjui/issue-to-pr, and",
+          "youngchingjui/hq. Run gh issue list and",
+          "gh pr list --state merged on each.",
+          "",
+          "Structure: projects shipped, key PRs,",
+          "milestones hit, and API/infra costs.",
+          "Reference video-content-plan-march-2026.md",
+          "for upcoming priorities. Save as monthly-",
+          'update-jan-feb-2026.md. Do NOT git add."',
+        ])
+        await wait(1200)
+        addLine(
+          hqTerm,
+          resultLine('<span class="t-green">Agent spawned in new pane</span>')
+        )
+
+        await wait(1000)
+
+        addLine(hqTerm, "")
+        addLine(
+          hqTerm,
+          '<span class="t-green t-bold">All 3 agents spawned.</span> Detailed prompts, separate directories.'
+        )
+        addLine(
+          hqTerm,
+          '<span class="t-dim">Monitoring progress from HQ...</span>',
+          "t-low"
+        )
+        await wait(600)
+
+        // ── Phase 4: Panes split open — widen window, squeeze HQ ──
+        // Widen the window to fill right side (keep annotations visible on left)
+        $("#window").style.width = "880px"
+        await wait(400)
+
+        // Squeeze HQ pane to make room for agents
+        hqPane.style.flex = "0.01"
+        hqPane.style.overflow = "hidden"
+
+        // Agent 1 pane
+        const a1Pane = createPane("agent1", "~/Projects/refolk", "0.01")
+        panesEl.appendChild(a1Pane)
+        await wait(80)
+        a1Pane.style.flex = "1"
+        await wait(350)
+
+        // Agent 2 pane
+        const a2Pane = createPane("agent2", "~/Projects/marketing", "0.01")
+        panesEl.appendChild(a2Pane)
+        await wait(80)
+        a2Pane.style.flex = "1"
+        await wait(350)
+
+        // Agent 3 pane
+        const a3Pane = createPane("agent3", "~/Projects/personal", "0.01")
+        panesEl.appendChild(a3Pane)
+        await wait(80)
+        a3Pane.style.flex = "1"
+
+        await wait(2200)
+
+        // ── Phase 5: Agents work in parallel ──
+        // Annotation 4: less downtime (stays visible)
+        show($("#ann-4"))
+
+        await Promise.all([agentRefolk(), agentMarketing(), agentPersonal()])
+
+        // ── Phase 6: All agents done ──
+        await wait(2000)
+      }
+
+      // ── Agent 1: Refolk (fix auth bug) ──
+      async function agentRefolk() {
+        const term = $("#agent1-term")
+        await wait(300)
+
+        addPromptBlock(term, [
+          "Fix the 403 auth bug on the workflow detail",
+          "page. This is a Next.js app using next-auth",
+          "for session management.",
+          "",
+          "The list endpoint at src/pages/api/workflows/",
+          "index.ts has getServerSession() with a 401",
+          "guard — but the detail endpoint [id].ts likely",
+          "skips it. Add the same auth pattern:",
+          "getServerSession(req, res, authOptions), check",
+          "for null, return 401.",
+          "",
+          "Also verify the repo ownership check — index.ts",
+          "filters by session.user.id, make sure [id].ts",
+          "does the same. Run npm test after. Do NOT git add.",
+        ])
+        addLine(term, "")
+        await wait(700)
+
+        addLine(
+          term,
+          toolLine("Grep", '<span class="t-dim">"403" in **/*.ts</span>'),
+          "t-low"
+        )
+        await wait(1100)
+        addLine(term, resultLine("3 matches in 2 files"), "t-low")
+        await wait(400)
+
+        addLine(
+          term,
+          toolLine(
+            "Read",
+            '<span class="t-blue">src/pages/api/workflows/[id].ts</span>'
+          ),
+          "t-low"
+        )
+        await wait(900)
+        addLine(term, resultLine("Read 42 lines"), "t-low")
+        await wait(300)
+
+        addLine(
+          term,
+          toolLine(
+            "Read",
+            '<span class="t-blue">src/pages/api/workflows/index.ts</span>'
+          ),
+          "t-low"
+        )
+        await wait(700)
+        addLine(term, resultLine("Read 38 lines"), "t-low")
+        await wait(500)
+
+        addLine(term, "")
+        addLine(term, "Found it. index.ts has a session", "t-low")
+        addLine(term, "check but [id].ts skips it entirely.", "t-low")
+        await wait(1000)
+
+        addLine(term, "")
+        addLine(
+          term,
+          toolLine(
+            "Edit",
+            '<span class="t-blue">src/pages/api/workflows/[id].ts</span>'
+          ),
+          "t-low"
+        )
+        await wait(1200)
+        addLine(
+          term,
+          resultLine(
+            '<span class="t-green">Added session check + repo validation</span>'
+          )
+        )
+        await wait(400)
+
+        addLine(term, "")
+        addLine(
+          term,
+          toolLine(
+            "Bash",
+            '<span class="t-dim">npm test -- --grep "workflow"</span>'
+          ),
+          "t-low"
+        )
+        await wait(1600)
+        addLine(term, resultLine('<span class="t-green">4 tests passed</span>'))
+        await wait(500)
+
+        addLine(term, "")
+        addLine(
+          term,
+          '<span class="t-green">Fix applied.</span> Auth check added,'
+        )
+        addLine(term, "matching index.ts pattern.", "t-low")
+        addLine(term, "")
+        addLine(
+          term,
+          '<span class="prompt-char">&gt;</span> <span class="cursor"></span>'
+        )
+      }
+
+      // ── Agent 2: Marketing (LinkedIn post) ──
+      async function agentMarketing() {
+        const term = $("#agent2-term")
+        await wait(700)
+
+        addPromptBlock(term, [
+          "Draft a LinkedIn post about the Refolk launch",
+          "next week. This is a workflow automation tool",
+          "for recruiters.",
+          "",
+          "Read existing posts in linkedin/ for tone and",
+          "format — Ching writes casual, first-person, no",
+          "hashtags, no emoji. Reference claude-code-multi-",
+          "agent-2026-03-06.md as the most recent example.",
+          "",
+          "Use the /linkedin skill. Angle: shipping speed",
+          "with AI-native development. Save to linkedin/",
+          "refolk-launch-2026-03-04.md. Filename format:",
+          "topic-YYYY-MM-DD.md. Do NOT git add.",
+        ])
+        addLine(term, "")
+        await wait(600)
+
+        addLine(
+          term,
+          toolLine("Glob", '<span class="t-dim">linkedin/**/*.md</span>'),
+          "t-low"
+        )
+        await wait(800)
+        addLine(term, resultLine("Found 4 existing posts"), "t-low")
+        await wait(300)
+
+        addLine(
+          term,
+          toolLine(
+            "Read",
+            '<span class="t-blue">linkedin/ai-workflow-2026-02-15.md</span>'
+          ),
+          "t-low"
+        )
+        await wait(900)
+        addLine(term, resultLine("Read 28 lines (tone reference)"), "t-low")
+        await wait(400)
+
+        addLine(
+          term,
+          toolLine("Skill", '<span class="t-yellow">linkedin</span>'),
+          "t-low"
+        )
+        await wait(600)
+        addLine(term, resultLine("Loaded LinkedIn drafting skill"), "t-low")
+        await wait(900)
+
+        addLine(term, "")
+        addLine(term, "Drafting in Ching's voice:", "t-low")
+        addLine(
+          term,
+          '<span class="t-dim">casual, first-person, practical...</span>',
+          "t-low"
+        )
+        await wait(1400)
+
+        addLine(term, "")
+        addLine(
+          term,
+          toolLine(
+            "Write",
+            '<span class="t-blue">linkedin/launch-post-2026-03-04.md</span>'
+          ),
+          "t-low"
+        )
+        await wait(1100)
+        addLine(term, resultLine("Wrote 34 lines"), "t-low")
+        await wait(500)
+
+        addLine(term, "")
+        addLine(
+          term,
+          '<span class="t-green">Draft saved.</span> Shipping speed +'
+        )
+        addLine(term, "AI-native workflow angle.", "t-low")
+        addLine(term, "")
+        addLine(
+          term,
+          '<span class="prompt-char">&gt;</span> <span class="cursor"></span>'
+        )
+      }
+
+      // ── Agent 3: Personal (monthly update) ──
+      async function agentPersonal() {
+        const term = $("#agent3-term")
+        await wait(1100)
+
+        addPromptBlock(term, [
+          "Create a monthly update doc for January &",
+          "February 2026. Use the gh CLI (not the GitHub",
+          "MCP — it has auth issues) to pull recent activity.",
+          "",
+          "Repos to check: youngchingjui/refolk,",
+          "youngchingjui/issue-to-pr, and youngchingjui/hq.",
+          "Run gh issue list and gh pr list --state merged",
+          "on each.",
+          "",
+          "Structure: projects shipped, key PRs, milestones",
+          "hit, and API/infra costs. Reference video-content-",
+          "plan-march-2026.md for upcoming priorities. Save",
+          "as monthly-update-jan-feb-2026.md. Do NOT git add.",
+        ])
+        addLine(term, "")
+        await wait(600)
+
+        addLine(
+          term,
+          toolLine(
+            "Bash",
+            '<span class="t-dim">gh issue list --limit 20</span>'
+          ),
+          "t-low"
+        )
+        await wait(1200)
+        addLine(term, resultLine("Listed 12 issues across repos"), "t-low")
+        await wait(300)
+
+        addLine(
+          term,
+          toolLine(
+            "Bash",
+            '<span class="t-dim">gh pr list --state all --limit 20</span>'
+          ),
+          "t-low"
+        )
+        await wait(1000)
+        addLine(term, resultLine("Listed 8 PRs"), "t-low")
+        await wait(400)
+
+        addLine(
+          term,
+          toolLine(
+            "Read",
+            '<span class="t-blue">video-content-plan-march-2026.md</span>'
+          ),
+          "t-low"
+        )
+        await wait(800)
+        addLine(term, resultLine("Read 61 lines"), "t-low")
+        await wait(600)
+
+        addLine(term, "")
+        addLine(term, "Compiling highlights from Jan & Feb:", "t-low")
+        addLine(
+          term,
+          '<span class="t-dim">Refolk, Issue-to-PR, hackathon...</span>',
+          "t-low"
+        )
+        await wait(1300)
+
+        addLine(term, "")
+        addLine(
+          term,
+          toolLine(
+            "Write",
+            '<span class="t-blue">monthly-update-jan-feb-2026.md</span>'
+          ),
+          "t-low"
+        )
+        await wait(1100)
+        addLine(term, resultLine("Wrote 58 lines"), "t-low")
+        await wait(500)
+
+        addLine(term, "")
+        addLine(
+          term,
+          '<span class="t-green">Update created.</span> Ready for Notion.',
+          "t-low"
+        )
+        addLine(term, "")
+        addLine(
+          term,
+          '<span class="prompt-char">&gt;</span> <span class="cursor"></span>'
+        )
+      }
+
+      // ── Controls ──
+      $("#start-btn").addEventListener("click", () => {
+        $("#start-overlay").classList.add("hidden")
+        runDemo()
+      })
+      document.addEventListener("keydown", (e) => {
+        if (
+          e.code === "Space" &&
+          !$("#start-overlay").classList.contains("hidden")
+        ) {
+          e.preventDefault()
+          $("#start-btn").click()
+        }
+      })
+    </script>
+  </body>
+</html>

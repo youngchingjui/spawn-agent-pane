@@ -10,6 +10,10 @@ The plugin automatically detects your terminal environment and spawns a new Clau
 2. **iTerm2** — detected via `$TERM_PROGRAM` on macOS, uses AppleScript to split the session
 3. **Fallback** — opens a new Terminal.app window on macOS, or tries `gnome-terminal` / `xterm` on Linux
 
+## Demo
+
+A demo is available at `demo/index.html`. Just open the file in your browser.
+
 ## Installation
 
 ### Via skills.sh (Agent Skills standard)
