@@ -12,11 +12,28 @@ The plugin automatically detects your terminal environment and spawns a new Clau
 
 ## Installation
 
-### From the plugin marketplace
+### Via skills.sh (Agent Skills standard)
+
+Install the skill into any compatible agent (Claude Code, Cursor, GitHub Copilot, etc.):
+
+```bash
+npx skills add youngchingjui/spawn-agent
+```
+
+This discovers the `skills/spawn-agent/SKILL.md` and installs it to your agent's skills directory. Use `--list` to preview available skills first, or `-g` for global install:
+
+```bash
+npx skills add youngchingjui/spawn-agent --list
+npx skills add youngchingjui/spawn-agent -g
+```
+
+### As a Claude Code plugin
 
 ```bash
 claude plugin install youngchingjui/spawn-agent
 ```
+
+Skills installed as a plugin are namespaced: `/spawn-agent:spawn-agent`.
 
 ### Local development
 

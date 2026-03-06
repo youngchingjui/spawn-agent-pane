@@ -2,6 +2,9 @@
 name: spawn-agent
 description: "Spawn a new Claude Code instance in a split terminal pane. Supports iTerm2, tmux, and generic terminal fallback. Use when delegating tasks to a parallel agent or working on multiple things simultaneously."
 disable-model-invocation: true
+metadata:
+  author: youngchingjui
+  version: "1.0.0"
 ---
 
 # Spawn Agent
