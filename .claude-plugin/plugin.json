@@ -1,0 +1,6 @@
+{
+  "name": "spawn-agent",
+  "description": "Spawn Claude Code instances in split terminal panes. Supports iTerm2, tmux, and a generic terminal fallback.",
+  "version": "1.0.0",
+  "author": "youngchingjui"
+}
