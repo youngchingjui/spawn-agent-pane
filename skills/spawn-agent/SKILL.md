@@ -1,6 +1,6 @@
 ---
 name: spawn-agent
-description: "Spawn a new Claude Code instance in a split terminal pane. Supports iTerm2, tmux, and generic terminal fallback. Use when delegating tasks to a parallel agent or working on multiple things simultaneously."
+description: "Spawn a new agent instance in a split terminal pane. Supports iTerm2, tmux, and generic terminal fallback. Use when delegating tasks to a parallel agent or working on multiple things simultaneously."
 disable-model-invocation: true
 metadata:
   author: youngchingjui
@@ -21,11 +21,11 @@ bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" [OPTIONS] -- "COMMAND"
 
 ### Options
 
-| Flag | Description |
-|------|-------------|
-| `-H`, `--horizontal` | Horizontal split (top-bottom) instead of default vertical (side-by-side) |
-| `-s SIZE`, `--size SIZE` | Pane size as a percentage (default: 50) |
-| `-t TYPE`, `--terminal TYPE` | Force terminal type (`tmux`, `iterm2`, `fallback`) |
+| Flag                         | Description                                                              |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `-H`, `--horizontal`         | Horizontal split (top-bottom) instead of default vertical (side-by-side) |
+| `-s SIZE`, `--size SIZE`     | Pane size as a percentage (default: 50)                                  |
+| `-t TYPE`, `--terminal TYPE` | Force terminal type (`tmux`, `iterm2`, `fallback`)                       |
 
 ### Spawning a Claude agent
 
@@ -64,6 +64,6 @@ bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" --config reset
 
 ## Critical rules
 
-- **NEVER** use `--print` or `-p` flags with `claude`. The spawned agent must run in **interactive mode**.
+- **Avoid** using `--print` or `-p` flags with `claude`. The spawned agent must run in **interactive mode**.
 - Use `$ARGUMENTS` as the prompt text when spawning Claude.
 - Pass the command as a single quoted string after `--` so shell operators like `&&` and `|` work naturally.
