@@ -4,31 +4,66 @@ description: "Spawn a new Claude Code instance in a split terminal pane. Support
 disable-model-invocation: true
 metadata:
   author: youngchingjui
-  version: "1.0.0"
+  version: "2.0.0"
 ---
 
 # Spawn Agent
 
-Spawn a new Claude Code instance in a split terminal pane.
+Open a new split terminal pane and run a command in it.
 
 ## Instructions
 
-1. First, detect the terminal environment by running:
+The script `spawn-agent.sh` opens a new terminal pane and runs whatever command you give it. Options go before `--`, and the command goes after.
 
 ```bash
-bash "${CLAUDE_SKILL_DIR}/scripts/detect-terminal.sh"
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" [OPTIONS] -- "COMMAND"
 ```
 
-2. Based on the output, run the matching spawn script:
+### Options
 
-   - `tmux` → `bash "${CLAUDE_SKILL_DIR}/scripts/spawn-tmux.sh"`
-   - `iterm2` → `bash "${CLAUDE_SKILL_DIR}/scripts/spawn-iterm2.sh"`
-   - `fallback` → `bash "${CLAUDE_SKILL_DIR}/scripts/spawn-fallback.sh"`
+| Flag | Description |
+|------|-------------|
+| `-H`, `--horizontal` | Horizontal split (top-bottom) instead of default vertical (side-by-side) |
+| `-s SIZE`, `--size SIZE` | Pane size as a percentage (default: 50) |
+| `-t TYPE`, `--terminal TYPE` | Force terminal type (`tmux`, `iterm2`, `fallback`) |
 
-3. Pass through any arguments the user provided. Use `$ARGUMENTS` as the prompt text. If the user specified a directory with `-d`, pass that through as well. If the user requested a horizontal split, pass `-h`.
+### Spawning a Claude agent
 
-Example:
+To delegate a task to a parallel Claude Code agent, pass the full command as a single string after `--`:
 
 ```bash
-bash "${CLAUDE_SKILL_DIR}/scripts/spawn-iterm2.sh" -d ~/Projects/myapp $ARGUMENTS
+# Spawn Claude in a specific directory with a prompt
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" -- "cd ~/Projects/myapp && claude 'Fix the login bug'"
+
+# Spawn Claude in the current directory
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" -- "claude 'Write tests for the API'"
+
+# With options
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" -H -s 40 -- "cd ~/Projects/myapp && claude 'Refactor the database layer'"
 ```
+
+### Running other commands
+
+The script is not limited to Claude — you can run any command:
+
+```bash
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" -- "htop"
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" -- "cd /var/log && tail -f syslog"
+```
+
+### Config management
+
+The script saves user preferences (split direction, pane size) to `~/.claude/spawn-agent.json`. Terminal type is always auto-detected.
+
+```bash
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" --config get
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" --config set split_direction vertical
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" --config set pane_size 40
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-agent.sh" --config reset
+```
+
+## Critical rules
+
+- **NEVER** use `--print` or `-p` flags with `claude`. The spawned agent must run in **interactive mode**.
+- Use `$ARGUMENTS` as the prompt text when spawning Claude.
+- Pass the command as a single quoted string after `--` so shell operators like `&&` and `|` work naturally.
