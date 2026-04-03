@@ -1,7 +1,6 @@
 ---
 name: spawn-agent
 description: "Spawn an independent agent in a separate terminal pane for parallel work. Detects your terminal environment and guides you to the right spawn command."
-disable-model-invocation: true
 metadata:
   author: youngchingjui
   version: "3.0.0"
