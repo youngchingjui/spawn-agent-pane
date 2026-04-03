@@ -42,11 +42,11 @@ Check these in order:
 }
 ```
 
-| Key             | Description                                                                | Default       |
-| --------------- | -------------------------------------------------------------------------- | ------------- |
-| `terminal`      | `tmux`, `iterm2`, `terminal-app`, `vscode`, `linux`                        | auto-detected |
-| `split`         | `vertical` or `horizontal`                                                 | `vertical`    |
-| `agent_command` | Command to launch the agent (e.g. `claude`, `codex`)                       | `claude`      |
+| Key             | Description                                          | Default       |
+| --------------- | ---------------------------------------------------- | ------------- |
+| `terminal`      | `tmux`, `iterm2`, `terminal-app`, `vscode`, `linux`  | auto-detected |
+| `split`         | `vertical` or `horizontal`                           | `vertical`    |
+| `agent_command` | Command to launch the agent (e.g. `claude`, `codex`) | `claude`      |
 
 ## Spawn commands
 
@@ -75,6 +75,16 @@ end tell'
 ```
 
 Change `split vertically` to `split horizontally` for top-bottom.
+
+For convenience, `scripts/spawn-iterm.sh` wraps the same code above with argument parsing, escaping, and config reading. Optional but useful for auto-approving in Claude settings:
+
+```bash
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-iterm.sh" --dir /path/to/project "PROMPT"
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-iterm.sh" --mode vertical --dir /path/to/project "PROMPT"
+bash "${CLAUDE_SKILL_DIR}/scripts/spawn-iterm.sh" --mode horizontal --dir /path/to/project "PROMPT"
+```
+
+`--mode` options: `tab` (default), `vertical` (side-by-side split), `horizontal` (top-bottom split).
 
 ### Terminal.app
 
